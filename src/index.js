@@ -2,7 +2,9 @@ const port = process.env.PORT || 8080
 const path = require('path');
 const express = require('express');
 const app = express();
-const {generateMessage} = require('./utils/messages')
+
+const {generateMessage,generateLocationMessage} = require('./utils/messages')
+
 const http = require('http');
 const server = http.createServer(app);
 
@@ -16,9 +18,14 @@ app.use(express.static(publicDirectryPath));
 io.on('connection',(socket) => {
     console.log('new connection...');
 
+socket.on('join', ({username,chatroom}) => {
+socket.join(chatroom)
+
 socket.emit('message',generateMessage('welcome'))
 
-socket.broadcast.emit('message',generateMessage('A new user has been joined...'))
+socket.broadcast.to(chatroom).emit('message',generateMessage(`${username} has joined`))
+
+})
 
 socket.on('sendMessage',(message,callback) => {
     const filter = new bad()
@@ -27,13 +34,13 @@ socket.on('sendMessage',(message,callback) => {
         return callback('profanity is not allowed')
     }
 
-    io.emit('message',generateMessage(message))
+    io.to('sree').emit('message',generateMessage(message))
 
     callback()
 })
 
 socket.on('sharelocation' , (coords,callback) => {
-    io.emit('locationMessage',`https://google.com/maps?q=${coords.latitude},${coords.longitude}`)
+    io.emit('locationMessage',generateLocationMessage(`https://google.com/maps?q=${coords.latitude},${coords.longitude}`))
 callback()
 })
 
