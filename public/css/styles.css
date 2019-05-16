@@ -176,6 +176,13 @@ button:disabled {
     padding: 12px 24px 0 24px;
 }
 
+
+ .portrait {
+     width: 250px;
+     height: 200px;
+ }
+
+
 .users {
     list-style-type: none;
     font-weight: 300;

@@ -4,6 +4,7 @@ const express = require('express');
 const app = express();
 
 const {generateMessage,generateLocationMessage} = require('./utils/messages')
+const { AddUser,RemoveUser,GetUser,getUserRooms } = require('./utils/users')
 
 const http = require('http');
 const server = http.createServer(app);
@@ -18,34 +19,51 @@ app.use(express.static(publicDirectryPath));
 io.on('connection',(socket) => {
     console.log('new connection...');
 
-socket.on('join', ({username,chatroom}) => {
-socket.join(chatroom)
+socket.on('join', (options, callback) => {
+  const {error,user} = AddUser({id:socket.id,...options})
 
-socket.emit('message',generateMessage('welcome'))
+   if(error){
+     return  callback(error)
+   }
+socket.join(user.chatroom)
 
-socket.broadcast.to(chatroom).emit('message',generateMessage(`${username} has joined`))
-
+socket.emit('message',generateMessage('Admin','welcome'))
+socket.broadcast.to(user.chatroom).emit('message',generateMessage('Admin',`${user.username} has joined`))
+io.to(user.chatroom).emit('roomData',{
+    chatroom:user.chatroom,
+    users:getUserRooms(user.chatroom)
+})
+callback()
 })
 
 socket.on('sendMessage',(message,callback) => {
+    const user = GetUser(socket.id)
     const filter = new bad()
 
     if(filter.isProfane(message)){
         return callback('profanity is not allowed')
     }
 
-    io.to('sree').emit('message',generateMessage(message))
+    io.to(user.chatroom).emit('message',generateMessage(user.username,message))
 
     callback()
 })
 
 socket.on('sharelocation' , (coords,callback) => {
-    io.emit('locationMessage',generateLocationMessage(`https://google.com/maps?q=${coords.latitude},${coords.longitude}`))
+    const user = GetUser(socket.id)
+    io.to(user.chatroom).emit('locationMessage',generateLocationMessage(user.username,`https://google.com/maps?q=${coords.latitude},${coords.longitude}`))
 callback()
 })
 
 socket.on('disconnect' , () => {
-    io.emit('message',generateMessage('A user has left...'))
+    const user = RemoveUser(socket.id)
+    if(user){
+    io.to(user.chatroom).emit('message',generateMessage('Admin',`${user.username}  has left...`))
+    io.to(user.chatroom).emit('roomData',{
+        chatroom:user.chatroom,
+        users:getUserRooms(user.chatroom)
+    })
+    }
 })
 
 })
